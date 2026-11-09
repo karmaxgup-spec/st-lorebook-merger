@@ -1,0 +1,19 @@
+<div id="lorebook_merger_settings" class="inline-drawer">
+    <div class="inline-drawer-toggle inline-drawer-header">
+        <b>Lorebook Merger</b>
+        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+        <label for="lorebook_merger_book">Lorebook</label>
+        <select id="lorebook_merger_book" class="text_pole"></select>
+
+        <label for="lorebook_merger_threshold">Merge entries sharing more than this many keywords</label>
+        <input id="lorebook_merger_threshold" class="text_pole" type="number" min="0" step="1" value="2" />
+
+        <div class="menu_button margin0" id="lorebook_merger_filter" title="Find entries that share enough keywords and merge them">
+            <i class="fa-solid fa-filter"></i>
+            <span>Filter</span>
+        </div>
+        <small>Merged entries keep the name of the earliest entry in each group. The others are deleted. Back up the lorebook first if you need to restore it.</small>
+    </div>
+</div>

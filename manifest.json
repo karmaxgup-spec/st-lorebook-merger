@@ -1,0 +1,13 @@
+{
+    "display_name": "Lorebook Merger",
+    "loading_order": 10,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "author": "local",
+    "version": "1.0.0",
+    "homePage": "",
+    "hooks": {
+        "activate": "init"
+    }
+}
