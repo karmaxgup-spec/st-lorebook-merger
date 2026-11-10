@@ -53,11 +53,17 @@ function appendContent(base, addition) {
 }
 
 /**
- * Finds groups of entries that share more than `threshold` primary keywords and merges them.
+ * Merges pairs of entries that share more than `threshold` primary keywords.
  *
- * Processing order is ascending uid. The earliest entry of a group survives and keeps its
- * comment (name); later matching entries are merged into it and removed. The survivor's
- * keyword set grows as entries are absorbed, so chains of matches are merged too.
+ * Each merge combines exactly two entries. Entries are visited in ascending uid order.
+ * The earliest unpaired entry is compared with later unpaired entries; the first one that
+ * shares enough keywords is merged into it and deleted. The survivor keeps its name
+ * (comment) and uid. Once an entry has been used in a merge (as survivor or removed), it
+ * is not used again in the same run, so a group of three matching entries becomes one
+ * merged pair plus the untouched third entry. Run Filter again to merge the next pair.
+ *
+ * Keyword comparisons use each entry's original keywords, so a merge in this run does not
+ * make other entries match.
  *
  * The input `entries` object is not modified.
  *
@@ -66,40 +72,40 @@ function appendContent(base, addition) {
  * @returns {{ entries: Record<string, any>, merges: Array<{ survivorUid: string, removedUid: string, shared: number }> }}
  */
 export function mergeEntries(entries, threshold) {
-    const result = structuredClone(entries ?? {});
-    const uids = Object.keys(result).sort((a, b) => Number(a) - Number(b));
-    const consumed = new Set();
+    const original = entries ?? {};
+    const result = structuredClone(original);
+    const uids = Object.keys(original).sort((a, b) => Number(a) - Number(b));
+    const used = new Set();
     const merges = [];
 
     for (const survivorUid of uids) {
-        if (consumed.has(survivorUid)) continue;
-        const survivor = result[survivorUid];
-        const survivorKeys = keywordSet(survivor);
+        if (used.has(survivorUid)) continue;
+        const survivorKeys = keywordSet(original[survivorUid]);
 
         for (const otherUid of uids) {
-            if (otherUid === survivorUid || consumed.has(otherUid)) continue;
-            // Only consider entries with a greater uid than the survivor, so the earliest entry survives.
-            if (Number(otherUid) < Number(survivorUid)) continue;
+            if (Number(otherUid) <= Number(survivorUid) || used.has(otherUid)) continue;
 
-            const other = result[otherUid];
-            const otherKeys = keywordSet(other);
+            const otherKeys = keywordSet(original[otherUid]);
             let shared = 0;
             for (const k of otherKeys) {
                 if (survivorKeys.has(k)) shared++;
             }
             if (shared <= threshold) continue;
 
-            // Union keywords and content into the survivor.
+            // Exactly one pair: fold `other` into `survivor`, then stop looking for this survivor.
+            const survivor = result[survivorUid];
+            const other = result[otherUid];
             survivor.key = Array.isArray(survivor.key) ? survivor.key : [];
             survivor.keysecondary = Array.isArray(survivor.keysecondary) ? survivor.keysecondary : [];
             unionKeywords(survivor.key, other.key);
             unionKeywords(survivor.keysecondary, other.keysecondary);
             survivor.content = appendContent(String(survivor.content ?? ''), other.content);
-            for (const k of keywordSet(survivor)) survivorKeys.add(k);
 
-            consumed.add(otherUid);
+            used.add(survivorUid);
+            used.add(otherUid);
             merges.push({ survivorUid, removedUid: otherUid, shared });
             delete result[otherUid];
+            break;
         }
     }
 
