@@ -52,6 +52,17 @@ function appendContent(base, addition) {
     return `${base.trimEnd()}\n\n${add}`;
 }
 
+/** Key stored in an entry's `extensions` object once it is the result of a merge. */
+export const MERGED_FLAG = 'lorebook_merger_merged';
+
+/**
+ * @param {{ extensions?: Record<string, any> }} entry
+ * @returns {boolean} True when the entry is already the result of a merge.
+ */
+export function isMergedEntry(entry) {
+    return entry?.extensions?.[MERGED_FLAG] === true;
+}
+
 /**
  * Merges pairs of entries that share more than `threshold` primary keywords.
  *
@@ -60,7 +71,11 @@ function appendContent(base, addition) {
  * shares enough keywords is merged into it and deleted. The survivor keeps its name
  * (comment) and uid. Once an entry has been used in a merge (as survivor or removed), it
  * is not used again in the same run, so a group of three matching entries becomes one
- * merged pair plus the untouched third entry. Run Filter again to merge the next pair.
+ * merged pair plus the untouched third entry.
+ *
+ * Survivors are marked in `extensions.lorebook_merger_merged` and skipped by later runs,
+ * so each entry belongs to at most one merge. Pairs of entries that were not merged in
+ * earlier runs are still matched.
  *
  * Keyword comparisons use each entry's original keywords, so a merge in this run does not
  * make other entries match.
@@ -79,11 +94,11 @@ export function mergeEntries(entries, threshold) {
     const merges = [];
 
     for (const survivorUid of uids) {
-        if (used.has(survivorUid)) continue;
+        if (used.has(survivorUid) || isMergedEntry(original[survivorUid])) continue;
         const survivorKeys = keywordSet(original[survivorUid]);
 
         for (const otherUid of uids) {
-            if (Number(otherUid) <= Number(survivorUid) || used.has(otherUid)) continue;
+            if (Number(otherUid) <= Number(survivorUid) || used.has(otherUid) || isMergedEntry(original[otherUid])) continue;
 
             const otherKeys = keywordSet(original[otherUid]);
             let shared = 0;
@@ -100,6 +115,7 @@ export function mergeEntries(entries, threshold) {
             unionKeywords(survivor.key, other.key);
             unionKeywords(survivor.keysecondary, other.keysecondary);
             survivor.content = appendContent(String(survivor.content ?? ''), other.content);
+            survivor.extensions = { ...(survivor.extensions ?? {}), [MERGED_FLAG]: true };
 
             used.add(survivorUid);
             used.add(otherUid);
